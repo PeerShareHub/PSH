@@ -10,6 +10,8 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
+@Setter
 public class RentalItem {
 
     @Id
@@ -42,4 +44,9 @@ public class RentalItem {
     @Max(value = 10, message = "Rating cannot be more than 10")
     @Column(nullable = false)
     private double rating = 0.0;
+
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 }
