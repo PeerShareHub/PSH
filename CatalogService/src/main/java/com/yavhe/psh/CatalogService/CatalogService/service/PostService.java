@@ -7,7 +7,9 @@ import com.yavhe.psh.CatalogService.CatalogService.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityNotFoundException;
 
 import java.time.LocalDateTime;
@@ -40,6 +42,27 @@ public class PostService {
     public Post getPostById(UUID id) {
         return postRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Post not found"));
+    }
+
+    public List<Post> getPostsByCategory(UUID categoryId, Double minPrice, Double maxPrice, Sort sort) {
+        return postRepository.findAll((root, query, criteriaBuilder) -> {
+            var predicates = criteriaBuilder.conjunction();
+
+            // Фильтрация по категории
+            predicates = criteriaBuilder.and(predicates, criteriaBuilder.equal(root.get("category").get("categoryId"), categoryId));
+
+            // Фильтрация по минимальной цене
+            if (minPrice != null) {
+                predicates = criteriaBuilder.and(predicates, criteriaBuilder.greaterThanOrEqualTo(root.get("pricePerDay"), minPrice));
+            }
+
+            // Фильтрация по максимальной цене
+            if (maxPrice != null) {
+                predicates = criteriaBuilder.and(predicates, criteriaBuilder.lessThanOrEqualTo(root.get("pricePerDay"), maxPrice));
+            }
+
+            return predicates;
+        }, sort);
     }
 
     public Post createPost(Post post) {
