@@ -6,6 +6,9 @@ import com.yavhe.psh.CatalogService.CatalogService.entity.Post;
 import com.yavhe.psh.CatalogService.CatalogService.service.CategoryService;
 import com.yavhe.psh.CatalogService.CatalogService.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,12 +23,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/categories")
 public class CategoryController {
-    @Autowired
-    private CategoryService categoryService;
-
+    private final CategoryService categoryService;
     private final PostService postService;
 
-    public CategoryController(PostService postService) {
+    @Autowired
+    public CategoryController(CategoryService categoryService, PostService postService) {
+        this.categoryService = categoryService;
         this.postService = postService;
     }
 
@@ -60,19 +63,20 @@ public class CategoryController {
     }
 
     @GetMapping("/{categoryId}/posts")
-    public ResponseEntity<List<Post>> getPostsByCategory(
+    public ResponseEntity<Page<Post>> getPostsByCategory(
             @PathVariable UUID categoryId,
             @RequestParam(value = "minPrice", required = false) Double minPrice,
             @RequestParam(value = "maxPrice", required = false) Double maxPrice,
-            @RequestParam(value = "sort", defaultValue = "createdAt,desc") String sort) {
+            @RequestParam(value = "sort", defaultValue = "createdAt,desc") String sort,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
 
-        // Обрабатываем параметры сортировки
         String[] sortParams = sort.split(",");
-        Sort sortOrder = Sort.by(Sort.Order.by(sortParams[0])
-                .with(Sort.Direction.fromString(sortParams[1])));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.by(sortParams[0])
+                .with(Sort.Direction.fromString(sortParams[1]))));
 
-        // Вызываем метод сервиса для поиска постов по категории с фильтрацией
-        List<Post> posts = postService.getPostsByCategory(categoryId, minPrice, maxPrice, sortOrder);
+        Page<Post> posts = postService.getPostsByCategory(categoryId, minPrice, maxPrice, pageable);
         return ResponseEntity.ok(posts);
     }
+
 }

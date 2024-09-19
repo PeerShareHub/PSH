@@ -5,38 +5,48 @@ import com.yavhe.psh.CatalogService.CatalogService.entity.Post;
 import com.yavhe.psh.CatalogService.CatalogService.repository.CategoryRepository;
 import com.yavhe.psh.CatalogService.CatalogService.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import jakarta.persistence.EntityNotFoundException;
 
+import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class PostService {
+
     @Autowired
     private PostRepository postRepository;
 
     @Autowired
     private CategoryRepository categoryRepository;
 
-    public List<Post> searchPosts(String title, String categoryName, Sort sort) {
-        if (categoryName == null) {
-            return postRepository.findByTitleContaining(title, sort);
-        } else {
-            Category category = categoryRepository.findByName(categoryName)
-                    .orElseThrow(() -> new EntityNotFoundException("Category not found"));
-            return postRepository.findByCategoryAndTitleContaining(category, title, sort);
-        }
+    public Page<Post> searchPosts(String title, String categoryName, Pageable pageable) {
+        Specification<Post> spec = (root, query, criteriaBuilder) -> {
+            var predicates = criteriaBuilder.conjunction();
+
+            // Фильтрация по заголовку
+            if (title != null) {
+                predicates = criteriaBuilder.and(predicates, criteriaBuilder.like(root.get("title"), "%" + title + "%"));
+            }
+
+            // Фильтрация по категории
+            if (categoryName != null) {
+                Category category = categoryRepository.findByName(categoryName)
+                        .orElseThrow(() -> new EntityNotFoundException("Category not found"));
+                predicates = criteriaBuilder.and(predicates, criteriaBuilder.equal(root.get("category").get("categoryId"), category.getCategoryId()));
+            }
+
+            return predicates;
+        };
+
+        return postRepository.findAll(spec, pageable);
     }
 
-    public List<Post> getAllPosts(Sort sort) {
-        return postRepository.findAll(sort);
+    public Page<Post> getAllPosts(Pageable pageable) {
+        return postRepository.findAll(pageable);
     }
 
     public Post getPostById(UUID id) {
@@ -44,8 +54,8 @@ public class PostService {
                 .orElseThrow(() -> new EntityNotFoundException("Post not found"));
     }
 
-    public List<Post> getPostsByCategory(UUID categoryId, Double minPrice, Double maxPrice, Sort sort) {
-        return postRepository.findAll((root, query, criteriaBuilder) -> {
+    public Page<Post> getPostsByCategory(UUID categoryId, Double minPrice, Double maxPrice, Pageable pageable) {
+        Specification<Post> spec = (root, query, criteriaBuilder) -> {
             var predicates = criteriaBuilder.conjunction();
 
             // Фильтрация по категории
@@ -62,8 +72,11 @@ public class PostService {
             }
 
             return predicates;
-        }, sort);
+        };
+
+        return postRepository.findAll(spec, pageable);
     }
+
 
     public Post createPost(Post post) {
         post.setCreatedAt(LocalDateTime.now());
@@ -85,7 +98,6 @@ public class PostService {
         post.setPostId(id);
         return postRepository.save(post);
     }
-
 
     public void deletePost(UUID id) {
         if (!postRepository.existsById(id)) {

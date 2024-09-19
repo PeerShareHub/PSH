@@ -3,6 +3,9 @@ package com.yavhe.psh.CatalogService.CatalogService.controller;
 import com.yavhe.psh.CatalogService.CatalogService.entity.Post;
 import com.yavhe.psh.CatalogService.CatalogService.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,16 +21,18 @@ public class PostController {
     private PostService postService;
 
     @GetMapping("/search")
-    public ResponseEntity<List<Post>> searchPosts(
+    public ResponseEntity<Page<Post>> searchPosts(
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "category", required = false) String categoryName,
-            @RequestParam(value = "sort", defaultValue = "date,desc") String sort) {
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "sort", defaultValue = "createdAt,desc") String sort) {
 
         String[] sortParams = sort.split(",");
-        Sort sortOrder = Sort.by(Sort.Order.by(sortParams[0])
-                .with(Sort.Direction.fromString(sortParams[1])));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.by(sortParams[0])
+                .with(Sort.Direction.fromString(sortParams[1]))));
 
-        List<Post> posts = postService.searchPosts(title, categoryName, sortOrder);
+        Page<Post> posts = postService.searchPosts(title, categoryName, pageable);
         return ResponseEntity.ok(posts);
     }
 
@@ -55,20 +60,19 @@ public class PostController {
         return ResponseEntity.ok().build();
     }
 
+
+
     @GetMapping
-    public ResponseEntity<List<Post>> getAllPosts(
+    public ResponseEntity<Page<Post>> getAllPosts(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
             @RequestParam(value = "sort", defaultValue = "createdAt,desc") String sort) {
 
         String[] sortParams = sort.split(",");
-        Sort sortOrder;
-        try {
-            sortOrder = Sort.by(Sort.Order.by(sortParams[0])
-                    .with(Sort.Direction.fromString(sortParams[1])));
-        } catch (IllegalArgumentException e) {
-            sortOrder = Sort.by(Sort.Order.desc("createdAt"));
-        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.by(sortParams[0])
+                .with(Sort.Direction.fromString(sortParams[1]))));
 
-        List<Post> posts = postService.getAllPosts(sortOrder);
+        Page<Post> posts = postService.getAllPosts(pageable);
         return ResponseEntity.ok(posts);
     }
 
